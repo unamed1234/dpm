@@ -2,6 +2,7 @@ use arboard::Clipboard;
 use fdpm::{SALT, copy_and_clear_pass, get_argon2, get_pass_from_rng};
 use rand::SeedableRng;
 use rand::{Rng, rngs::StdRng};
+use std::io::Write;
 use std::{env, io};
 use zeroize::Zeroize;
 
@@ -14,7 +15,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Err("couldn't set process as non dumpable (call to prctl failed)")?;
         }
         if unsafe { libc::mlockall(libc::MCL_CURRENT | libc::MCL_FUTURE) } != 0 {
-            Err("couldn't opt out of using swap (call to mlockall failed)")?;
+            eprintln!("couldn't opt out of using swap (call to mlockall failed)");
+            eprint!("want to proceed? [Y/n]");
+            std::io::stderr().flush()?;
+            let mut answer = String::new();
+            io::stdin().read_line(&mut answer)?;
+            if !matches!(answer.trim(), "y" | "Y") {
+                Err("refused to proceed.")?;
+            }
         }
     };
     let args: Vec<String> = env::args().collect();
@@ -86,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     Ok(())
 }
-fn print_help(program_name: &String) {
+fn print_help(program_name: &str) {
     println!("fully deterministic password manager (fdpm):");
     println!("  takes a password and runs it trough a cryptographically secure RNG.");
     println!(
